@@ -1,249 +1,677 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador Avanzado de Bode</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f4f4f9; color: #333; display: flex; flex-direction: column; height: 100vh; }
-        header { background: #2c3e50; color: white; padding: 1rem; text-align: center; }
-        .container { display: flex; flex: 1; overflow: hidden; }
-        
-        /* Panel de Control y Fórmulas */
-        .sidebar { width: 350px; background: white; padding: 20px; overflow-y: auto; border-right: 1px solid #ddd; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
-        .input-group { margin-bottom: 20px; }
-        label { font-weight: bold; display: block; margin-bottom: 5px; }
-        input[type="text"] { width: 95%; padding: 10px; font-size: 16px; border: 2px solid #3498db; border-radius: 4px; font-family: 'Courier New', monospace; }
-        button { background: #3498db; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; border-radius: 4px; width: 100%; margin-top: 10px; transition: 0.3s; }
-        button:hover { background: #2980b9; }
-        
-        .results-box { background: #e8f6f3; border-left: 5px solid #1abc9c; padding: 10px; margin-top: 20px; }
-        .formula-box { background: #fdfefe; border: 1px solid #eee; padding: 10px; margin-top: 20px; font-size: 0.9em; }
-        
-        /* Área de Gráficos */
-        .main-content { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        .plot-container { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 10px; height: 45%; }
-        
-        h3 { color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }
-        .error-msg { color: #e74c3c; font-weight: bold; margin-top: 10px; display: none; }
-    </style>
-</head>
-<body>
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Play, Pause, RefreshCw, Activity, Settings, Info, Calculator, Type } from 'lucide-react';
 
-<header>
-    <h2>Simulador Interactivo: Diagrama de Bode</h2>
-</header>
+// --- MATH UTILITIES FOR POLYNOMIALS ---
 
-<div class="container">
-    <div class="sidebar">
-        <div class="input-group">
-            <label for="tfInput">Función de Transferencia \( H(s) \):</label>
-            <input type="text" id="tfInput" value="100 / (s^2 + 10*s + 100)" placeholder="Ej: 1 / (s + 1)">
-            <small style="color: #7f8c8d;">Usa 's' como variable. Ej: <code>10/(s*(s+2))</code></small>
-            <button onclick="calculateBode()">Actualizar Gráficos</button>
-            <div id="errorDisplay" class="error-msg"></div>
-        </div>
+// 1. Basic Operations on Coefficient Arrays
+// [1, 2, 1] represents 1s^2 + 2s + 1
 
-        <div class="results-box">
-            <h3>Márgenes de Estabilidad</h3>
-            <p><strong>Margen de Ganancia (GM):</strong> <span id="gmValue">--</span> dB</p>
-            <p>Frec. de Cruce de Fase (\(\omega_{pc}\)): <span id="wpcValue">--</span> rad/s</p>
-            <hr>
-            <p><strong>Margen de Fase (PM):</strong> <span id="pmValue">--</span> deg</p>
-            <p>Frec. de Cruce de Ganancia (\(\omega_{gc}\)): <span id="wgcValue">--</span> rad/s</p>
-            <p id="stabilityVerdict" style="font-weight: bold; margin-top:10px;"></p>
-        </div>
+const polyAdd = (p1, p2) => {
+  const len = Math.max(p1.length, p2.length);
+  const res = new Array(len).fill(0);
+  const p1Pad = new Array(len - p1.length).fill(0).concat(p1);
+  const p2Pad = new Array(len - p2.length).fill(0).concat(p2);
+  
+  for (let i = 0; i < len; i++) {
+    res[i] = p1Pad[i] + p2Pad[i];
+  }
+  // Trim leading zeros
+  while (res.length > 1 && res[0] === 0) res.shift();
+  return res;
+};
 
-        <div class="formula-box">
-            <h3>Fórmulas Teóricas</h3>
-            <p>Sea \( s = j\omega \):</p>
-            <p><strong>Magnitud (dB):</strong></p>
-            $$ M_{dB} = 20 \log_{10} |H(j\omega)| $$
-            
-            <p><strong>Fase (grados):</strong></p>
-            $$ \phi = \angle H(j\omega) = \tan^{-1}\left(\frac{Im}{Re}\right) $$
-            
-            <p><strong>Criterios:</strong></p>
-            <ul>
-                <li>\(\omega_{gc}\): Frecuencia donde \( |H| = 1 \) (0 dB).</li>
-                <li>\(\omega_{pc}\): Frecuencia donde \( \phi = -180^\circ \).</li>
-                <li><strong>PM:</strong> \( 180^\circ + \phi(\omega_{gc}) \)</li>
-                <li><strong>GM:</strong> \( 0 - M_{dB}(\omega_{pc}) \)</li>
-            </ul>
-        </div>
-    </div>
-
-    <div class="main-content">
-        <div id="magPlot" class="plot-container"></div>
-        <div id="phasePlot" class="plot-container"></div>
-    </div>
-</div>
-
-<script>
-    // Configuración Inicial
-    const w_start = 0.1;
-    const w_end = 1000;
-    const points = 500;
-
-    function generateLogSpace(start, end, num) {
-        const logStart = Math.log10(start);
-        const logEnd = Math.log10(end);
-        const step = (logEnd - logStart) / (num - 1);
-        return Array.from({length: num}, (_, i) => Math.pow(10, logStart + (i * step)));
+const polyMult = (p1, p2) => {
+  const m = p1.length;
+  const n = p2.length;
+  const res = new Array(m + n - 1).fill(0);
+  
+  for (let i = 0; i < m; i++) {
+    for (let j = 0; j < n; j++) {
+      res[i + j] += p1[i] * p2[j];
     }
+  }
+  return res;
+};
 
-    function calculateBode() {
-        const exprStr = document.getElementById('tfInput').value;
-        const errorDiv = document.getElementById('errorDisplay');
-        const gmSpan = document.getElementById('gmValue');
-        const pmSpan = document.getElementById('pmValue');
-        const wpcSpan = document.getElementById('wpcValue');
-        const wgcSpan = document.getElementById('wgcValue');
-        const verdict = document.getElementById('stabilityVerdict');
+const polyScale = (p, scalar) => p.map(x => x * scalar);
 
-        errorDiv.style.display = 'none';
+// 2. String Parser
+// Converts strings like "10(s+1)(s+2)" or "s^2 + 2s + 1" into coefficient arrays
 
-        try {
-            const compiledExpr = math.compile(exprStr);
-            const freqs = generateLogSpace(w_start, w_end, points);
-            
-            const magnitudes = [];
-            const phases = [];
-            const magDBs = [];
-            
-            // Arrays para detección de cruces
-            let pm = null; // Phase Margin
-            let gm = null; // Gain Margin
-            let w_gc = null; // Gain Crossover Freq
-            let w_pc = null; // Phase Crossover Freq
+const parseTerm = (termStr) => {
+  // Parses single term e.g., "5s^2", "s", "-3s", "10"
+  let s = termStr.replace(/\s/g, '').replace(/\*/g, '').replace('jw', 's');
+  
+  // Handle empty or just "-"
+  if (!s || s === '+') return [0];
+  if (s === '-') return [0]; // Should be handled by splitter, but safety first
 
-            // Cálculo de datos
-            freqs.forEach(w => {
-                // Evaluar H(jw)
-                const sVal = math.complex(0, w);
-                const result = compiledExpr.evaluate({ s: sVal });
-                
-                // Magnitud
-                const mag = result.abs();
-                const db = 20 * Math.log10(mag);
-                magnitudes.push(mag);
-                magDBs.push(db);
+  // Determine power
+  let power = 0;
+  if (s.includes('s^')) {
+    power = parseInt(s.split('s^')[1]);
+  } else if (s.includes('s')) {
+    power = 1;
+  }
 
-                // Fase (Unwrapped logic simplificada para visualización básica)
-                let phase = result.arg() * (180 / Math.PI); 
-                // Ajustar a rango -270 a 90 para visualización típica de control
-                // Nota: Un unwrapping real completo requiere historial, aquí usamos math.js standard
-                phases.push(phase);
-            });
+  // Determine coefficient
+  let coeffStr = s.split('s')[0];
+  let coeff = 1;
+  if (coeffStr === '' || coeffStr === '+') coeff = 1;
+  else if (coeffStr === '-') coeff = -1;
+  else coeff = parseFloat(coeffStr);
 
-            // --- Algoritmo simple para encontrar márgenes ---
-            // 1. Encontrar Wgc (donde magDB cruza 0)
-            for (let i = 0; i < magDBs.length - 1; i++) {
-                if ((magDBs[i] >= 0 && magDBs[i+1] < 0) || (magDBs[i] <= 0 && magDBs[i+1] > 0)) {
-                    w_gc = freqs[i]; // Aprox
-                    // Calcular Fase en Wgc
-                    const phaseAtWgc = phases[i];
-                    pm = 180 + phaseAtWgc; 
-                    break; 
-                }
-            }
+  // Create poly array: 5s^2 -> [5, 0, 0]
+  const poly = new Array(power + 1).fill(0);
+  poly[0] = coeff;
+  return poly;
+};
 
-            // 2. Encontrar Wpc (donde phase cruza -180)
-            for (let i = 0; i < phases.length - 1; i++) {
-                // Detectar cruce por -180 (asumiendo continuidad)
-                if ((phases[i] >= -180 && phases[i+1] < -180)) {
-                    w_pc = freqs[i];
-                    // Calcular Ganancia en Wpc
-                    const dbAtWpc = magDBs[i];
-                    gm = 0 - dbAtWpc;
-                    break;
-                }
-            }
+const parseSumExpression = (expr) => {
+  // Handles "s^2 - 2s + 1"
+  // Replace - with +- to split easily by +
+  const cleanExpr = expr.replace(/-/g, '+-');
+  const terms = cleanExpr.split('+').filter(t => t.trim() !== '');
+  
+  let totalPoly = [0];
+  terms.forEach(term => {
+    const termPoly = parseTerm(term);
+    totalPoly = polyAdd(totalPoly, termPoly);
+  });
+  return totalPoly;
+};
 
-            // Actualizar UI de márgenes
-            wgcSpan.innerText = w_gc ? w_gc.toFixed(2) : "N/A";
-            pmSpan.innerText = pm ? pm.toFixed(2) : "Inf";
-            wpcSpan.innerText = w_pc ? wpc.toFixed(2) : "N/A";
-            gmSpan.innerText = gm ? gm.toFixed(2) : "Inf";
-
-            if (pm > 0 && gm > 0) {
-                verdict.innerText = "Sistema Estable";
-                verdict.style.color = "green";
-            } else if (pm !== null || gm !== null) {
-                verdict.innerText = "Posible Inestabilidad";
-                verdict.style.color = "red";
-            } else {
-                verdict.innerText = "Indeterminado / Margen Infinito";
-                verdict.style.color = "orange";
-            }
-
-            // --- Gráfico de Magnitud ---
-            const traceMag = {
-                x: freqs,
-                y: magDBs,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Magnitud (dB)',
-                line: { color: '#2980b9', width: 3 },
-                hovertemplate: 'Frec: %{x:.2f} rad/s<br>Mag: %{y:.2f} dB<extra></extra>'
-            };
-
-            const layoutMag = {
-                title: 'Diagrama de Bode - Magnitud',
-                xaxis: { type: 'log', title: 'Frecuencia (rad/s)', gridcolor: '#eee' },
-                yaxis: { title: 'Magnitud (dB)', gridcolor: '#eee' },
-                margin: { t: 40, r: 20, b: 40, l: 60 },
-                shapes: [
-                    { type: 'line', y0: 0, y1: 0, x0: w_start, x1: w_end, line: {color: 'red', width: 1, dash: 'dot'} }
-                ]
-            };
-
-            // --- Gráfico de Fase ---
-            const tracePhase = {
-                x: freqs,
-                y: phases,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Fase (deg)',
-                line: { color: '#e74c3c', width: 3 },
-                hovertemplate: 'Frec: %{x:.2f} rad/s<br>Fase: %{y:.2f}°<extra></extra>'
-            };
-
-            const layoutPhase = {
-                title: 'Diagrama de Bode - Fase',
-                xaxis: { type: 'log', title: 'Frecuencia (rad/s)', gridcolor: '#eee' },
-                yaxis: { title: 'Fase (grados)', gridcolor: '#eee' },
-                margin: { t: 40, r: 20, b: 40, l: 60 },
-                shapes: [
-                    { type: 'line', y0: -180, y1: -180, x0: w_start, x1: w_end, line: {color: 'black', width: 1, dash: 'dot'} }
-                ]
-            };
-
-            Plotly.newPlot('magPlot', [traceMag], layoutMag, {responsive: true});
-            Plotly.newPlot('phasePlot', [tracePhase], layoutPhase, {responsive: true});
-
-        } catch (e) {
-            errorDiv.innerText = "Error en la función: Verifique paréntesis y operadores. " + e.message;
-            errorDiv.style.display = 'block';
-        }
-    }
-
-    // Inicializar al cargar
-    window.onload = calculateBode;
+const parseExpression = (str) => {
+  try {
+    // 1. Normalize: jw -> s, remove spaces
+    let clean = str.toLowerCase().replace(/\s/g, '').replace(/jw/g, 's');
     
-    // Permitir Enter para calcular
-    document.getElementById("tfInput").addEventListener("keyup", function(event) {
-        if (event.key === "Enter") {
-            calculateBode();
-        }
+    // 2. Identify Groups for Multiplication: (a)*(b)
+    // Simple parser: split by '*' but respect parenthesis depth is hard with simple split.
+    // simpler approach for this context:
+    // If user writes (s+1)(s+2), inject * -> (s+1)*(s+2)
+    clean = clean.replace(/\)\(/g, ')*(');
+    
+    // We will split by '*' ONLY if it's not inside parentheses (basic heuristic)
+    // Actually, simple recursive descent or "split by *" is risky if nested. 
+    // Let's assume standard form: K * (factor) * (factor) / ...
+    
+    // Split into multiplicative factors
+    const parts = [];
+    let depth = 0;
+    let current = '';
+    
+    for (let char of clean) {
+      if (char === '(') depth++;
+      if (char === ')') depth--;
+      
+      if (char === '*' && depth === 0) {
+        parts.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    parts.push(current);
+
+    // Process each factor
+    let resultPoly = [1];
+    
+    for (let part of parts) {
+      if (!part) continue;
+      
+      // Remove outer parens if present: ((s+1)) -> s+1
+      let inner = part;
+      while (inner.startsWith('(') && inner.endsWith(')') && 
+             // Check if these parens are matching pairs for the whole string
+             // (simple check: count balance)
+             true) {
+         // quick verify it's a wrapper pair
+         let d = 0;
+         let wrapper = true;
+         for(let i=0; i<inner.length-1; i++){
+             if(inner[i] === '(') d++;
+             if(inner[i] === ')') d--;
+             if(d===0) { wrapper = false; break; }
+         }
+         if(wrapper) inner = inner.slice(1, -1);
+         else break;
+      }
+
+      const partPoly = parseSumExpression(inner);
+      resultPoly = polyMult(resultPoly, partPoly);
+    }
+    
+    return resultPoly;
+  } catch (e) {
+    console.error("Parse error", e);
+    return [0]; // Error fallback
+  }
+};
+
+
+// --- Utility Functions for Complex Math & Bode ---
+
+// Parse string input "1, 2, 3" to array [1, 2, 3]
+const parseCoefficients = (str) => {
+  return str.split(',')
+    .map(s => parseFloat(s.trim()))
+    .filter(n => !isNaN(n));
+};
+
+// Evaluate polynomial P(s) at s = j*omega
+const evalPoly = (coeffs, w) => {
+  let re = 0;
+  let im = 0;
+  const n = coeffs.length - 1;
+
+  for (let i = 0; i <= n; i++) {
+    const power = n - i;
+    const coeff = coeffs[i];
+    const wPow = Math.pow(w, power);
+    
+    if (power % 4 === 0) {
+      re += coeff * wPow;
+    } else if (power % 4 === 1) {
+      im += coeff * wPow;
+    } else if (power % 4 === 2) {
+      re -= coeff * wPow;
+    } else if (power % 4 === 3) {
+      im -= coeff * wPow;
+    }
+  }
+  return { re, im };
+};
+
+// Calculate Magnitude (dB) and Phase (degrees)
+const calculateBodePoint = (numCoeffs, denCoeffs, w) => {
+  const num = evalPoly(numCoeffs, w);
+  const den = evalPoly(denCoeffs, w);
+
+  const denominator = den.re * den.re + den.im * den.im;
+  if (denominator === 0) return { mag: -100, phase: 0 };
+
+  const finalRe = (num.re * den.re + num.im * den.im) / denominator;
+  const finalIm = (num.im * den.re - num.re * den.im) / denominator;
+
+  const magAbs = Math.sqrt(finalRe * finalRe + finalIm * finalIm);
+  const magdB = 20 * Math.log10(magAbs || 1e-10);
+
+  let phaseRad = Math.atan2(finalIm, finalRe);
+  let phaseDeg = phaseRad * (180 / Math.PI);
+
+  return { w, mag: magdB, phase: phaseDeg };
+};
+
+// --- Components ---
+
+const EquationDisplay = ({ num, den }) => {
+  const formatPoly = (coeffs) => {
+    if (!coeffs || coeffs.length === 0) return <span>0</span>;
+    const n = coeffs.length - 1;
+    return coeffs.map((c, i) => {
+      const power = n - i;
+      if (Math.abs(c) < 1e-10) return null; // Hide effectively zero
+      
+      const isFirst = i === 0 || coeffs.slice(0, i).every(val => Math.abs(val) < 1e-10);
+      const signStr = c >= 0 ? (isFirst ? '' : ' + ') : (isFirst ? '-' : ' - ');
+      
+      const absC = Math.abs(c);
+      // specific formatting for 1s vs s
+      let scalar = parseFloat(absC.toFixed(4)); // clean up floating point mess
+      if (scalar === 1 && power > 0) scalar = '';
+      
+      const variable = power === 0 ? '' : power === 1 ? 's' : `s^${power}`;
+      if (scalar === '' && variable === '') scalar = '1';
+      
+      return <span key={i}>{signStr}{scalar}{variable}</span>;
     });
+  };
 
-</script>
+  return (
+    <div className="flex items-center justify-center p-4 bg-slate-800 rounded-lg shadow-inner my-4 font-serif text-lg text-slate-200 overflow-x-auto">
+      <span className="italic mr-2 font-bold text-blue-400 shrink-0">H(s) = </span>
+      <div className="flex flex-col items-center min-w-[100px]">
+        <div className="border-b border-slate-400 px-2 pb-1 text-center whitespace-nowrap">
+          {formatPoly(num)}
+        </div>
+        <div className="pt-1 text-center whitespace-nowrap">
+          {formatPoly(den)}
+        </div>
+      </div>
+    </div>
+  );
+};
 
-</body>
-</html>
+const PlotArea = ({ data, type, width, height, cursorW, onCursorMove, color }) => {
+  if (!data || data.length === 0) return null;
+
+  const padding = { top: 20, right: 30, bottom: 30, left: 50 };
+  const chartW = width - padding.left - padding.right;
+  const chartH = height - padding.top - padding.bottom;
+
+  const minLogW = Math.log10(data[0].w);
+  const maxLogW = Math.log10(data[data.length - 1].w);
+  
+  const vals = data.map(d => type === 'mag' ? d.mag : d.phase);
+  let minVal = Math.min(...vals);
+  let maxVal = Math.max(...vals);
+  
+  const range = maxVal - minVal;
+  // Dynamic padding based on range flatness
+  const rangePad = range === 0 ? 10 : range * 0.1;
+  minVal -= rangePad; 
+  maxVal += rangePad;
+
+  const xScale = (w) => {
+    const logW = Math.log10(w);
+    return ((logW - minLogW) / (maxLogW - minLogW)) * chartW;
+  };
+
+  const yScale = (v) => {
+    return chartH - ((v - minVal) / (maxVal - minVal)) * chartH;
+  };
+
+  const pathD = data.map((d, i) => {
+    const x = xScale(d.w);
+    const y = yScale(type === 'mag' ? d.mag : d.phase);
+    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ');
+
+  const logGridLines = [];
+  for (let exp = Math.ceil(minLogW); exp <= Math.floor(maxLogW); exp++) {
+    const w = Math.pow(10, exp);
+    logGridLines.push({ x: xScale(w), label: `10^${exp}` });
+    for(let k=2; k<10; k++) {
+       logGridLines.push({ x: xScale(w*k), label: null });
+    }
+  }
+
+  const yGridLines = [0, 0.25, 0.5, 0.75, 1].map(t => {
+      const val = minVal + t * (maxVal - minVal);
+      return { y: yScale(val), val };
+  });
+
+  const cursorX = cursorW ? xScale(cursorW) : -10;
+  const currentPoint = data.find(d => d.w >= cursorW) || data[0];
+  const currentVal = type === 'mag' ? currentPoint.mag : currentPoint.phase;
+  const currentY = yScale(currentVal);
+
+  return (
+    <div className="relative mb-6 select-none">
+      <h3 className="text-sm font-semibold text-slate-400 mb-1 ml-12">
+        {type === 'mag' ? 'Magnitud (dB)' : 'Fase (Grados)'}
+      </h3>
+      <svg 
+        width={width} 
+        height={height} 
+        className="bg-slate-900 rounded-lg shadow-lg border border-slate-700 cursor-crosshair touch-none"
+        onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left - padding.left;
+            const ratio = Math.max(0, Math.min(1, x / chartW));
+            const logW = ratio * (maxLogW - minLogW) + minLogW;
+            onCursorMove(Math.pow(10, logW));
+        }}
+        onTouchMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.touches[0].clientX - rect.left - padding.left;
+            const ratio = Math.max(0, Math.min(1, x / chartW));
+            const logW = ratio * (maxLogW - minLogW) + minLogW;
+            onCursorMove(Math.pow(10, logW));
+        }}
+      >
+        <g transform={`translate(${padding.left}, ${padding.top})`}>
+          {/* Grid X */}
+          {logGridLines.map((g, i) => (
+            <g key={i}>
+                <line x1={g.x} y1={0} x2={g.x} y2={chartH} stroke="#334155" strokeWidth={g.label ? 1 : 0.5} strokeDasharray={g.label ? "" : "2,2"} />
+                {g.label && <text x={g.x} y={chartH + 15} textAnchor="middle" fill="#64748b" fontSize="10">{g.label}</text>}
+            </g>
+          ))}
+          {/* Grid Y */}
+          {yGridLines.map((g, i) => (
+             <g key={i}>
+                <line x1={0} y1={g.y} x2={chartW} y2={g.y} stroke="#334155" />
+                <text x={-10} y={g.y + 4} textAnchor="end" fill="#64748b" fontSize="10">{g.val.toFixed(1)}</text>
+             </g>
+          ))}
+          {/* Zero Line */}
+          {minVal < 0 && maxVal > 0 && (
+              <line x1={0} y1={yScale(0)} x2={chartW} y2={yScale(0)} stroke="#94a3b8" strokeWidth={1.5} opacity={0.5} />
+          )}
+          {/* Main Plot */}
+          <path d={pathD} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Interactive Cursor */}
+          {cursorW > 0 && (
+            <>
+                <line x1={cursorX} y1={0} x2={cursorX} y2={chartH} stroke="#facc15" strokeWidth={1} strokeDasharray="4,2" />
+                <circle cx={cursorX} cy={currentY} r={5} fill="#facc15" stroke="#fff" />
+                <text 
+                    x={cursorX > chartW/2 ? cursorX - 10 : cursorX + 10} 
+                    y={currentY - 10} 
+                    fill="#facc15" 
+                    textAnchor={cursorX > chartW/2 ? "end" : "start"} 
+                    fontWeight="bold"
+                    fontSize="12"
+                >
+                    {currentVal.toFixed(2)} {type === 'mag' ? 'dB' : '°'}
+                </text>
+            </>
+          )}
+        </g>
+      </svg>
+    </div>
+  );
+};
+
+export default function BodeApp() {
+  const [mode, setMode] = useState('expression'); // 'coeff' or 'expression'
+  
+  // States for Coeff Mode
+  const [numCoeffStr, setNumCoeffStr] = useState("100");
+  const [denCoeffStr, setDenCoeffStr] = useState("1, 10, 100");
+
+  // States for Expression Mode
+  const [numExprStr, setNumExprStr] = useState("100");
+  const [denExprStr, setDenExprStr] = useState("s^2 + 10*s + 100");
+
+  const [data, setData] = useState([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [cursorW, setCursorW] = useState(0.1);
+  const animationRef = useRef();
+
+  // Computed Coefficients based on mode
+  const { numCoeffs, denCoeffs } = useMemo(() => {
+    if (mode === 'coeff') {
+      return {
+        numCoeffs: parseCoefficients(numCoeffStr),
+        denCoeffs: parseCoefficients(denCoeffStr)
+      };
+    } else {
+      return {
+        numCoeffs: parseExpression(numExprStr),
+        denCoeffs: parseExpression(denExprStr)
+      };
+    }
+  }, [mode, numCoeffStr, denCoeffStr, numExprStr, denExprStr]);
+
+  // Generate Data Points
+  useEffect(() => {
+    const points = [];
+    const minExp = -1; // 10^-1
+    const maxExp = 4;  // 10^4
+    const stepsPerDecade = 50;
+    
+    // Safety check for empty coeffs
+    if (numCoeffs.length === 0 || denCoeffs.length === 0) {
+        setData([]);
+        return;
+    }
+    
+    for (let exp = minExp; exp <= maxExp; exp += 1/stepsPerDecade) {
+      const w = Math.pow(10, exp);
+      points.push(calculateBodePoint(numCoeffs, denCoeffs, w));
+    }
+
+    // --- PHASE UNWRAPPING ALGORITHM ---
+    // MATLAB style: detects jumps > 180 degrees and shifts the phase
+    // to make the curve continuous (e.g., going down to -270 instead of jumping to +90)
+    let shift = 0;
+    for (let i = 1; i < points.length; i++) {
+        const prev = points[i-1].phase;
+        const curr = points[i].phase;
+        
+        // Calculate the raw difference
+        let diff = curr - (prev - shift);
+        
+        // If jump is too positive (e.g. -179 to +179), we need to subtract 360
+        if (diff > 180) {
+            shift -= 360;
+        } 
+        // If jump is too negative (e.g. +179 to -179), we need to add 360
+        else if (diff < -180) {
+            shift += 360;
+        }
+        
+        points[i].phase += shift;
+    }
+
+    setData(points);
+    // Only reset cursor if it's out of bounds or data changed significantly
+    if (cursorW < Math.pow(10, minExp) || cursorW > Math.pow(10, maxExp)) {
+        setCursorW(Math.pow(10, minExp));
+    }
+  }, [numCoeffs, denCoeffs]);
+
+  // Animation Loop
+  const togglePlay = () => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      cancelAnimationFrame(animationRef.current);
+    } else {
+      setIsPlaying(true);
+      const minLog = Math.log10(data[0].w);
+      const maxLog = Math.log10(data[data.length-1].w);
+      
+      let currentLog = Math.log10(cursorW);
+
+      const animate = () => {
+        currentLog += 0.03; 
+        if (currentLog > maxLog) currentLog = minLog;
+        
+        setCursorW(Math.pow(10, currentLog));
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animationRef.current = requestAnimationFrame(animate);
+    }
+  };
+
+  useEffect(() => {
+    return () => cancelAnimationFrame(animationRef.current);
+  }, []);
+
+  const currentPoint = data.find(d => d.w >= cursorW) || (data.length ? data[0] : {mag:0, phase:0});
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500 selection:text-white p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-slate-800 pb-6">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent flex items-center gap-3">
+              <Activity className="w-8 h-8 text-blue-400" />
+              Calculadora de Bode
+            </h1>
+            <p className="text-slate-400 mt-2">Simulación y análisis de respuesta en frecuencia</p>
+          </div>
+          <div className="mt-4 md:mt-0 px-4 py-2 bg-slate-900 rounded-full border border-slate-800 text-sm text-slate-400 flex items-center gap-2">
+            <Info className="w-4 h-4" />
+            <span>Arrastra sobre la gráfica para interactuar</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* INPUTS PANEL */}
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* Mode Switcher */}
+            <div className="bg-slate-900 p-1 rounded-lg border border-slate-800 flex text-sm">
+                <button 
+                    onClick={() => setMode('expression')}
+                    className={`flex-1 py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'expression' ? 'bg-slate-700 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                    <Type className="w-4 h-4" /> Expresión (s / jw)
+                </button>
+                <button 
+                    onClick={() => setMode('coeff')}
+                    className={`flex-1 py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'coeff' ? 'bg-slate-700 text-white font-semibold shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                    <Calculator className="w-4 h-4" /> Coeficientes
+                </button>
+            </div>
+
+            <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-xl">
+              <div className="flex items-center gap-2 mb-4 text-slate-200 font-semibold">
+                <Settings className="w-5 h-5" /> Parámetros de Entrada
+              </div>
+              
+              <div className="space-y-4">
+                {mode === 'expression' ? (
+                   <>
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1">Numerador H(s)</label>
+                        <input 
+                            type="text" 
+                            value={numExprStr}
+                            onChange={(e) => setNumExprStr(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-mono text-sm"
+                            placeholder="Ej: 10 * (s + 1)"
+                        />
+                        <p className="text-xs text-slate-600 mt-1">Acepta 's' o 'jw'. Ej: <code>10*(s+1)</code></p>
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1">Denominador H(s)</label>
+                        <input 
+                            type="text" 
+                            value={denExprStr}
+                            onChange={(e) => setDenExprStr(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-mono text-sm"
+                            placeholder="Ej: (s+2)*(s+5)"
+                        />
+                        <p className="text-xs text-slate-600 mt-1">Ej: <code>(s+1)*(s^2 + 10s + 100)</code></p>
+                    </div>
+                   </>
+                ) : (
+                   <>
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1">Numerador (Coeficientes)</label>
+                        <input 
+                            type="text" 
+                            value={numCoeffStr}
+                            onChange={(e) => setNumCoeffStr(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-mono"
+                            placeholder="Ej: 100"
+                        />
+                        <p className="text-xs text-slate-600 mt-1">Orden descendente. Ej: <code>1, 0, 10</code> (s² + 10)</p>
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1">Denominador (Coeficientes)</label>
+                        <input 
+                            type="text" 
+                            value={denCoeffStr}
+                            onChange={(e) => setDenCoeffStr(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-mono"
+                            placeholder="Ej: 1, 10, 100"
+                        />
+                    </div>
+                   </>
+                )}
+                
+                <div className="pt-2 flex gap-2">
+                   <button 
+                    onClick={() => {
+                        if (mode === 'expression') {
+                             setNumExprStr("10 * (s+1)");
+                             setDenExprStr("(s+2) * (s+10)");
+                        } else {
+                             setNumCoeffStr("10, 10");
+                             setDenCoeffStr("1, 12, 20");
+                        }
+                    }}
+                    className="text-xs flex items-center gap-1 text-slate-500 hover:text-blue-400 transition-colors"
+                   >
+                       <RefreshCw className="w-3 h-3" /> Cargar ejemplo real
+                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Equation Preview (Always shows the standardized form) */}
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-xl overflow-hidden">
+               <div className="flex justify-between items-center mb-2">
+                 <h3 className="text-xs uppercase tracking-wider text-slate-500">Normalizada (Polinomio)</h3>
+                 {mode === 'expression' && <span className="text-[10px] text-green-500 bg-green-500/10 px-2 py-0.5 rounded">Calculado Automáticamente</span>}
+               </div>
+               <EquationDisplay num={numCoeffs} den={denCoeffs} />
+            </div>
+
+            {/* Data Readout */}
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <Activity className="w-24 h-24" />
+                </div>
+                <h3 className="text-sm text-slate-400 mb-4">Valores en cursor</h3>
+                <div className="space-y-4 relative z-10">
+                    <div>
+                        <span className="text-xs text-slate-500 block">Frecuencia (w)</span>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-mono text-white">{cursorW.toFixed(2)}</span>
+                            <span className="text-xs text-slate-500">rad/s</span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <span className="text-xs text-slate-500 block">Magnitud</span>
+                            <span className={`text-xl font-mono font-bold ${currentPoint?.mag < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                {currentPoint?.mag?.toFixed(2)} dB
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-xs text-slate-500 block">Fase</span>
+                            <span className="text-xl font-mono font-bold text-yellow-400">
+                                {currentPoint?.phase?.toFixed(1)}°
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={togglePlay}
+                    className={`mt-6 w-full py-3 rounded-lg flex items-center justify-center gap-2 font-semibold transition-all ${
+                        isPlaying 
+                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
+                        : 'bg-blue-500 text-white hover:bg-blue-600 shadow-lg shadow-blue-500/20'
+                    }`}
+                >
+                    {isPlaying ? <><Pause className="w-5 h-5" /> Pausar Animación</> : <><Play className="w-5 h-5" /> Animar Barrido</>}
+                </button>
+            </div>
+          </div>
+
+          {/* Charts Area */}
+          <div className="lg:col-span-8 space-y-4">
+            <div className="w-full h-auto bg-slate-900/50 rounded-xl p-4 border border-slate-800 overflow-hidden flex flex-col items-center">
+                <div className="w-full max-w-[700px]">
+                    <PlotArea 
+                        data={data} 
+                        type="mag" 
+                        width={700} 
+                        height={350} 
+                        cursorW={cursorW}
+                        onCursorMove={setCursorW}
+                        color="#3b82f6" // Blue
+                    />
+                    <PlotArea 
+                        data={data} 
+                        type="phase" 
+                        width={700} 
+                        height={350} 
+                        cursorW={cursorW}
+                        onCursorMove={setCursorW}
+                        color="#f59e0b" // Amber
+                    />
+                </div>
+            </div>
+             <p className="text-center text-xs text-slate-600">
+                Escala Logarítmica (Eje X) • Frecuencia en rad/s
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
