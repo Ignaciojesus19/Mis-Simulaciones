@@ -1,0 +1,115 @@
+<section>
+  <h2>Codigo Newton Rapshon NxN</h2>
+  <pre><code>
+import math
+
+# --- 1. AQUÍ DEFINES TU SISTEMA 4x4 ---
+def sistema(x):
+    # x[0]=1, x[1]=2, x[2]=3, x[3]=4
+    
+    # Ec 1: Suma = 10
+    eq1 = x[0] + x[1] + x[2]  -3 
+    
+    # Ec 2: Suma de cuadrados = 30
+    eq2 = x[0]**2 + x[1]**2 + x[2]**2  - 5
+    
+    # Ec 3: x0 * x3 = x1^2 (Producto cruzado)
+    eq3 = math.exp(x[0])-x[1]
+    
+    # Ec 4: x2^2 - x3 = 5
+    #eq4 = x[2]**2 - x[3] - 5
+    
+#    return [eq1, eq2, eq3, eq4]
+    return [eq1, eq2, eq3]
+
+# --- 2. CONFIGURACIÓN INICIAL ---
+def get_config():
+    # Semilla: Damos valores cercanos pero desordenados
+    # para ver como el algoritmo los corrige.
+    x_inicial = [0.5, 1.5, 2.5] 
+    iteraciones = 10
+    return x_inicial, iteraciones
+
+
+# ==========================================
+# NO TOCAR NADA DEBAJO DE ESTA LINEA
+# ==========================================
+
+def gauss_solve(A, b):
+    n = len(b)
+    M = [row[:] for row in A]
+    y = b[:]
+    for i in range(n):
+        if abs(M[i][i]) < 1e-12:
+            for k in range(i+1, n):
+                if abs(M[k][i]) > 1e-12:
+                    M[i], M[k] = M[k], M[i]
+                    y[i], y[k] = y[k], y[i]
+                    break
+        pivot = M[i][i]
+        for j in range(i, n):
+            M[i][j] /= pivot
+        y[i] /= pivot
+        for k in range(i+1, n):
+            factor = M[k][i]
+            for j in range(i, n):
+                M[k][j] -= factor * M[i][j]
+            y[k] -= factor * y[i]
+    x_sol = [0] * n
+    for i in range(n-1, -1, -1):
+        s = sum(M[i][j] * x_sol[j] for j in range(i+1, n))
+        x_sol[i] = y[i] - s
+    return x_sol
+
+def jacobiano(x):
+    n = len(x)
+    h = 1e-5
+    J = [[0.0]*n for _ in range(n)]
+    f0 = sistema(x)
+    
+    for j in range(n):
+        x_temp = x[:]
+        x_temp[j] += h
+        f_h = sistema(x_temp)
+        for i in range(n):
+            J[i][j] = (f_h[i] - f0[i]) / h
+    return J, f0
+
+def main():
+    print("--- NEWTON RAPHSON 3x3 ---")
+    x_curr, num_iter = get_config()
+    
+    print("Inicio:", x_curr)
+    
+    for k in range(1, num_iter + 1):
+        try:
+            J, F = jacobiano(x_curr)
+            # F debe ser negativo para J*dx = -F
+            minus_F = [-val for val in F]
+            
+            delta = gauss_solve(J, minus_F)
+            
+            # Actualizar
+            for i in range(len(x_curr)):
+                x_curr[i] += delta[i]
+                
+            # Formato simple para ver progreso
+            print("It", k, ":", [round(v, 4) for v in x_curr])
+            
+            # Criterio de parada simple (si delta es muy chico)
+            if all(abs(d) < 1e-6 for d in delta):
+                print("Convergencia alcanzada.")
+                break
+                
+        except Exception as e:
+            print("Error:", e)
+            break
+            
+    print("\nRESULTADO FINAL:")
+    print(x_curr)
+
+if __name__ == "__main__":
+    main()
+
+  </code></pre>
+</section>
