@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Code, Layers, CheckSquare, Terminal, AlertTriangle, Play, Save } from 'lucide-react';
+import { BookOpen, Code, Layers, CheckSquare, Terminal, AlertTriangle, Play, Save, Globe } from 'lucide-react';
 
 const SurvivalKit = () => {
   const [activeTab, setActiveTab] = useState('structure');
@@ -9,6 +9,7 @@ const SurvivalKit = () => {
     { id: 'syntax', label: 'Piezas LEGO (Sintaxis)', icon: Code },
     { id: 'subroutines', label: 'Subrutinas (Cómo usarlas)', icon: BookOpen },
     { id: 'checklist', label: 'Checklist Examen', icon: CheckSquare },
+    { id: 'deploy', label: 'Subir a la Web', icon: Globe },
   ];
 
   return (
@@ -307,6 +308,90 @@ F(2) = 15 * sin( rad(q(3)) )`}
                 <Save className="mx-auto mb-2" size={24} />
                 <p className="font-bold">Si todo está marcado, compila y ejecuta.</p>
                 <p className="text-sm">¡Ese 4.0 es tuyo!</p>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: DESPLIEGUE */}
+          {activeTab === 'deploy' && (
+            <div className="p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <h3 className="font-bold text-xl mb-6 flex items-center gap-2 text-slate-800">
+                <Globe className="text-blue-500" />
+                Cómo llevar este Kit a GitHub Pages
+              </h3>
+              
+              <div className="space-y-6 max-w-3xl mx-auto">
+                
+                <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
+                  <h4 className="font-bold text-lg mb-3">1. Requisitos Previos</h4>
+                  <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
+                    <li>Tener <strong>Node.js</strong> instalado en tu computadora.</li>
+                    <li>Tener una cuenta en <strong>GitHub</strong>.</li>
+                    <li>Tener <strong>Git</strong> instalado.</li>
+                  </ul>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="border border-slate-200 p-4 rounded-lg bg-white">
+                      <div className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded w-fit mb-2">PASO 2</div>
+                      <h5 className="font-bold text-sm mb-2">Crear Proyecto Vite</h5>
+                      <div className="bg-slate-800 text-slate-200 p-3 rounded font-mono text-xs">
+                        npm create vite@latest mi-kit -- --template react
+                        <br/>cd mi-kit
+                        <br/>npm install
+                      </div>
+                    </div>
+
+                    <div className="border border-slate-200 p-4 rounded-lg bg-white">
+                      <div className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded w-fit mb-2">PASO 3</div>
+                      <h5 className="font-bold text-sm mb-2">Instalar Dependencias</h5>
+                      <p className="text-xs text-slate-500 mb-2">Para que se vea igual a este diseño:</p>
+                      <div className="bg-slate-800 text-slate-200 p-3 rounded font-mono text-xs">
+                        npm install -D tailwindcss postcss autoprefixer
+                        <br/>npx tailwindcss init -p
+                        <br/>npm install lucide-react
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="border border-slate-200 p-4 rounded-lg bg-white h-full">
+                      <div className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded w-fit mb-2">PASO 4</div>
+                      <h5 className="font-bold text-sm mb-2">Copiar el Código</h5>
+                      <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                        1. Ve al archivo <code>src/App.jsx</code> en tu nuevo proyecto.<br/>
+                        2. Borra todo lo que hay dentro.<br/>
+                        3. Copia el código completo de este "Kit de Supervivencia" (haz clic en "Copiar" arriba a la derecha de este editor).<br/>
+                        4. Pégalo en <code>src/App.jsx</code>.<br/>
+                        5. Asegúrate de configurar Tailwind en <code>index.css</code> agregando:<br/>
+                        <code className="block bg-slate-100 p-1 mt-1 text-slate-500">
+                          @tailwind base; @tailwind components; @tailwind utilities;
+                        </code>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 text-white p-5 rounded-xl">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="bg-green-500 text-slate-900 text-xs font-bold px-2 py-1 rounded">PASO FINAL</div>
+                    <h5 className="font-bold">Subir y Desplegar</h5>
+                  </div>
+                  <div className="font-mono text-xs text-slate-300 space-y-2">
+                    <p># 1. Crea un repositorio vacío en GitHub.com</p>
+                    <p># 2. En tu terminal:</p>
+                    <p>git init</p>
+                    <p>git add .</p>
+                    <p>git commit -m "Mi Kit de Supervivencia"</p>
+                    <p>git branch -M main</p>
+                    <p>git remote add origin https://github.com/TU_USUARIO/mi-kit.git</p>
+                    <p>git push -u origin main</p>
+                    <br/>
+                    <p className="text-yellow-400"># 3. Ve a Settings &gt; Pages en GitHub y selecciona 'main' como fuente (Source).</p>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
