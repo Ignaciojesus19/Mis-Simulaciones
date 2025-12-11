@@ -1,405 +1,95 @@
-import React, { useState } from 'react';
-import { BookOpen, Code, Layers, CheckSquare, Terminal, AlertTriangle, Play, Save, Globe } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ejemplo de Código</title>
+</head>
+<body>
+  <!-- Título -->
+  <h1>Mi primer fragmento de código</h1>
 
-const SurvivalKit = () => {
-  const [activeTab, setActiveTab] = useState('structure');
+  <!-- Fragmento de código -->
+  <pre><code>
+      program E2
+      implicit none
+      real :: q(3),dp(3,3),dq(3),p(3),ya,xb,yb,error
+      real :: suma
+      integer :: i,j,k
+      !Valores iniciales
+      ya = 44
+      xb = 100
+      yb = 60
+      error = 100
+      !Deja la matriz de 3x3 rellena de ceros
+      dp = 0.0
 
-  const tabs = [
-    { id: 'structure', label: 'Estructura Maestra', icon: Layers },
-    { id: 'syntax', label: 'Piezas LEGO (Sintaxis)', icon: Code },
-    { id: 'subroutines', label: 'Subrutinas (Cómo usarlas)', icon: BookOpen },
-    { id: 'checklist', label: 'Checklist Examen', icon: CheckSquare },
-    { id: 'deploy', label: 'Subir a la Web', icon: Globe },
-  ];
+      do while(error>0.01)
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-200">
-      {/* Header */}
-      <header className="bg-slate-900 text-white p-6 shadow-lg border-b-4 border-blue-500">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Terminal className="text-blue-400" />
-            Kit de Supervivencia: Fortran Mecanismos
-          </h1>
-          <p className="text-slate-400 mt-2">
-            Estrategia para asegurar el 4.0 - Guía de referencia rápida y sintaxis.
-          </p>
-        </div>
-      </header>
+         suma = 0.0
+         !Definimos ecuaciones R
+         p(1) = 40**2+ya**2-60**2
+         p(2) = (xb-40)**2+(yb-ya)**2-100**2
+         p(3) = (120-xb)**2 + (0-yb)**2-130**2
+         !Definimos dp
+         dp(1,1) = 2*ya
+         dp(2,1) = -2*(yb-ya)
+         dp(2,2) = 2*(xb-40)
+         dp(2,3) = 2*(yb-ya)
+         dp(3,2) = -2*(120-xb)
+         dp(3,3) = 2*yb
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto p-4 sm:p-6">
-        
-        {/* Navigation */}
-        <div className="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex-1 justify-center whitespace-nowrap
-                  ${activeTab === tab.id 
-                    ? 'bg-blue-600 text-white shadow-md' 
-                    : 'hover:bg-slate-100 text-slate-600'}`}
-              >
-                <Icon size={18} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+         p = -p
 
-        {/* Content Area */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 min-h-[500px]">
-          
-          {/* TAB 1: ESTRUCTURA MAESTRA */}
-          {activeTab === 'structure' && (
-            <div className="p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="flex items-start gap-4 mb-6 bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                <Play className="text-blue-600 shrink-0 mt-1" />
-                <div>
-                  <h3 className="font-bold text-blue-900">El Esqueleto (Memorízalo)</h3>
-                  <p className="text-blue-800 text-sm">
-                    Esta es la estructura que debes escribir primero. Las partes marcadas en <span className="font-mono bg-yellow-200 px-1 rounded text-yellow-900">AMARILLO</span> son las únicas que cambias según el problema.
-                  </p>
-                </div>
-              </div>
+         call gj(dp,p,3,dq)
+         !Determino la norma de dq
+         do i = 1,3,1
+            suma = suma + dq(i)**2
+         enddo
+         error = sqrt(suma)
 
-              <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto text-sm font-mono text-slate-300 leading-relaxed shadow-inner">
-                <div className="mb-2"><span className="text-purple-400">program</span> <span className="text-white">Examen</span></div>
-                <div className="mb-4 pl-4"><span className="text-purple-400">implicit none</span> <span className="text-green-400">! OBLIGATORIO</span></div>
-                
-                <div className="mb-2 pl-4 text-slate-500">! 1. Declaración (Casi siempre igual)</div>
-                <div className="mb-4 pl-4">
-                  <span className="text-blue-400">real</span> :: q(3), F(3), J(3,3), dq(3), x_pis<br/>
-                  <span className="text-blue-400">integer</span> :: paso, k
-                </div>
+         ya = ya + dq(1)
+         xb = xb + dq(2)
+         yb = yb + dq(3)
 
-                <div className="mb-2 pl-4 text-slate-500">! 2. Preparación</div>
-                <div className="mb-4 pl-4">
-                  <span className="text-yellow-400">open(10, file='Pos.txt')</span><br/>
-                  q(1) = <span className="text-yellow-400">44.0</span> <span className="text-slate-500">! Valor Inicial YA</span><br/>
-                  q(2) = <span className="text-yellow-400">100.0</span> <span className="text-slate-500">! Valor Inicial XB</span><br/>
-                  q(3) = <span className="text-yellow-400">60.0</span> <span className="text-slate-500">! Valor Inicial YB</span>
-                </div>
+         write(*,*) ya,xb,yb
+      end do
 
-                <div className="mb-2 pl-4 text-slate-500">! 3. BUCLE EXTERNO (Movimiento del Pistón)</div>
-                <div className="mb-4 pl-4 border-l-2 border-green-500 ml-2">
-                  <span className="text-purple-400">do</span> paso = <span className="text-yellow-400">10, 95</span> <span className="text-slate-500">! Rango: 10cm a 95cm</span><br/>
-                  <div className="pl-4">
-                     x_pis = <span className="text-blue-400">real</span>(paso) / 100.0 <span className="text-slate-500">! Conversión a metros</span><br/>
-                     <br/>
-                     <span className="text-slate-500">! --- BUCLE INTERNO (Matemática) ---</span><br/>
-                     <span className="text-purple-400">do</span> k = 1, 10<br/>
-                     <div className="pl-4 border-l-2 border-blue-500 ml-2">
-                        <span className="text-slate-500">! A. ECUACIONES (Mirar dibujo)</span><br/>
-                        F(1) = <span className="text-yellow-400 bg-yellow-900/30 px-1">...ecuación con x_pis...</span><br/>
-                        F(2) = <span className="text-yellow-400 bg-yellow-900/30 px-1">...ecuación 2...</span><br/>
-                        F(3) = <span className="text-yellow-400 bg-yellow-900/30 px-1">...ecuación 3...</span><br/>
-                        <br/>
-                        <span className="text-slate-500">! B. JACOBIANO (Derivadas)</span><br/>
-                        J = 0.0 <span className="text-slate-500">! Limpiar siempre</span><br/>
-                        J(1,1) = <span className="text-yellow-400 bg-yellow-900/30 px-1">2*q(1)</span><br/>
-                        J(2,1) = <span className="text-yellow-400 bg-yellow-900/30 px-1">...derivada...</span><br/>
-                        <br/>
-                        <span className="text-slate-500">! C. SOLVER (Siempre igual)</span><br/>
-                        F = -F<br/>
-                        <span className="text-purple-400">call</span> gj(J, F, 3, dq)<br/>
-                        q = q + dq
-                     </div>
-                     <span className="text-purple-400">end do</span>
-                     <br/><br/>
-                     <span className="text-purple-400">write</span>(10, *) x_pis, q(1), q(2)
-                  </div>
-                  <span className="text-purple-400">end do</span>
-                </div>
 
-                <div className="mb-2 pl-4"><span className="text-purple-400">close</span>(10)</div>
-                <div><span className="text-purple-400">end program</span> <span className="text-white">Examen</span></div>
-              </div>
-            </div>
-          )}
 
-          {/* TAB 2: SINTAXIS / PIEZAS LEGO */}
-          {activeTab === 'syntax' && (
-            <div className="p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300 grid gap-6 md:grid-cols-2">
-              
-              {/* CARD 1: MATEMÁTICAS */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
-                  <span className="bg-blue-100 text-blue-700 p-1 rounded">1</span>
-                  Matemáticas vs Fortran
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center p-2 bg-white rounded border">
-                    <span className="font-serif italic text-lg">x²</span>
-                    <span className="text-purple-600 font-mono">x**2</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-white rounded border">
-                    <span className="font-serif italic text-lg">√x</span>
-                    <span className="text-purple-600 font-mono">sqrt(x)</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-white rounded border">
-                    <span className="font-serif italic text-lg">sin(30°)</span>
-                    <span className="text-red-500 font-mono text-xs text-right">
-                      sin(30.0 * 3.1416 / 180.0)<br/>
-                      <span className="text-slate-400 text-[10px]">(Siempre Radianes)</span>
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-white rounded border">
-                    <span className="font-serif italic text-lg">2(a - b)</span>
-                    <span className="text-purple-600 font-mono">2.0 * (a - b)</span>
-                  </div>
-                </div>
-              </div>
+      pause
+      end program E2
 
-              {/* CARD 2: MATRICES */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
-                  <span className="bg-blue-100 text-blue-700 p-1 rounded">2</span>
-                  Mapa de la Matriz J
-                </h3>
-                <p className="text-xs text-slate-500 mb-2">J(FILA, COLUMNA) = J(Ecuación, Variable)</p>
-                
-                <div className="grid grid-cols-4 gap-1 text-center font-mono text-xs">
-                  {/* Headers */}
-                  <div className="col-span-1"></div>
-                  <div className="bg-blue-100 p-1 rounded font-bold text-blue-800">q(1)</div>
-                  <div className="bg-blue-100 p-1 rounded font-bold text-blue-800">q(2)</div>
-                  <div className="bg-blue-100 p-1 rounded font-bold text-blue-800">q(3)</div>
-                  
-                  {/* Row 1 */}
-                  <div className="bg-yellow-100 p-1 rounded font-bold text-yellow-800 flex items-center justify-center">Ecu 1</div>
-                  <div className="bg-white border p-2 rounded">J(1,1)</div>
-                  <div className="bg-white border p-2 rounded">J(1,2)</div>
-                  <div className="bg-white border p-2 rounded">J(1,3)</div>
 
-                  {/* Row 2 */}
-                  <div className="bg-yellow-100 p-1 rounded font-bold text-yellow-800 flex items-center justify-center">Ecu 2</div>
-                  <div className="bg-white border p-2 rounded">J(2,1)</div>
-                  <div className="bg-white border p-2 rounded">J(2,2)</div>
-                  <div className="bg-white border p-2 rounded">J(2,3)</div>
 
-                  {/* Row 3 */}
-                  <div className="bg-yellow-100 p-1 rounded font-bold text-yellow-800 flex items-center justify-center">Ecu 3</div>
-                  <div className="bg-white border p-2 rounded">J(3,1)</div>
-                  <div className="bg-white border p-2 rounded">J(3,2)</div>
-                  <div className="bg-white border p-2 rounded">J(3,3)</div>
-                </div>
-              </div>
+C     Agregar subrutina GJ
 
-              {/* CARD 3: BUCLES */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 col-span-full">
-                <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
-                  <span className="bg-blue-100 text-blue-700 p-1 rounded">3</span>
-                  Cómo funciona el INCREMENTO
-                </h3>
-                <div className="bg-slate-800 text-slate-200 p-4 rounded-lg font-mono text-sm space-y-4">
-                  <div>
-                    <span className="text-purple-400">do</span> <span className="text-yellow-300">paso</span> = <span className="text-green-300">INICIO</span>, <span className="text-red-300">FIN</span>, <span className="text-blue-300">SALTO</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <div className="bg-slate-700 p-2 rounded border border-slate-600">
-                      <strong className="text-white block mb-1">De 1 en 1 (Estándar)</strong>
-                      <code>do paso = 10, 95, 1</code><br/>
-                      <span className="text-slate-400">10, 11, 12, 13...</span>
-                    </div>
-                    <div className="bg-slate-700 p-2 rounded border border-slate-600">
-                      <strong className="text-white block mb-1">Saltos Grandes</strong>
-                      <code>do paso = 10, 95, 5</code><br/>
-                      <span className="text-slate-400">10, 15, 20, 25...</span>
-                    </div>
-                    <div className="bg-slate-700 p-2 rounded border border-slate-600">
-                      <strong className="text-white block mb-1">El Traductor</strong>
-                      <code>x = real(paso)/100.0</code><br/>
-                      <span className="text-slate-400">Convierte entero a metro</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+      subroutine gj(A,b,dim,sol)
+	implicit none
+	integer :: dim, i ,j
+	real :: m_amp(dim,dim+1), A(dim,dim), b(dim), sol(dim)
 
-          {/* TAB 3: SUBRUTINAS */}
-          {activeTab === 'subroutines' && (
-            <div className="p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              
-              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6">
-                <h3 className="font-bold text-yellow-800 flex items-center gap-2">
-                  <AlertTriangle size={18} />
-                  Regla de Oro
-                </h3>
-                <p className="text-yellow-700 text-sm">
-                  Estas subrutinas son "Cajas Negras". Copia y pega el código al final de tu archivo. 
-                  <strong className="block mt-1">NO intentes entender cómo resuelven la matriz por dentro. Solo úsalas.</strong>
-                </p>
-              </div>
+	m_amp(1:dim,1:dim) = A
+	m_amp(:,dim+1) = b
 
-              <div className="space-y-8">
-                {/* GJ Explanation */}
-                <div>
-                  <h4 className="font-bold text-lg mb-2 text-slate-800">1. Subrutina GJ (Gauss-Jordan)</h4>
-                  <p className="text-sm text-slate-500 mb-2">Resuelve el sistema de ecuaciones J * dq = -F</p>
-                  <div className="bg-slate-900 text-slate-300 p-4 rounded-lg font-mono text-sm">
-                    <span className="text-slate-500">! Así se llama dentro del bucle (Pega esto en tu código)</span><br/>
-                    <span className="text-purple-400">call</span> gj(J, F, <span className="text-yellow-400">3</span>, dq)<br/>
-                    <br/>
-                    <span className="text-slate-500">! IMPORTANTE: El número '3' es la cantidad de variables.</span><br/>
-                    <span className="text-slate-500">! Si tienes 4 variables, cambia ese 3 por un 4.</span>
-                  </div>
-                </div>
+	!!! evitar ceros en la diagonal
 
-                {/* Rad Helper Explanation */}
-                <div>
-                  <h4 className="font-bold text-lg mb-2 text-slate-800">2. Función RAD (Helper de Ángulos)</h4>
-                  <p className="text-sm text-slate-500 mb-2">Copia esto al final de tu archivo para convertir grados a radianes fácil.</p>
-                  
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="bg-slate-100 p-4 rounded-lg border border-slate-200">
-                      <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">Código a copiar (Al final)</h5>
-                      <pre className="text-xs font-mono text-slate-700">
-                        {`function rad(grados)
-  real :: rad, grados
-  rad = grados * 3.14159 / 180.0
-end function rad`}
-                      </pre>
-                    </div>
-                    
-                    <div className="bg-slate-100 p-4 rounded-lg border border-slate-200">
-                      <h5 className="font-bold text-xs text-slate-500 uppercase mb-2">Cómo usarla en las ecuaciones</h5>
-                      <pre className="text-xs font-mono text-slate-700">
-                        {`! En lugar de escribir la fórmula fea:
-F(1) = 20 * cos( rad(45.0) )
-F(2) = 15 * sin( rad(q(3)) )`}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
+	do i = 1,dim
+           do j = 1,dim
+              m_amp(i,:) = m_amp(i,:) +m_amp(j,:)
+        end do
+        end do
 
-              </div>
-            </div>
-          )}
+	do i =1,dim
+		m_amp(i,:) = m_amp(i,:)/m_amp(i,i)
+		do j = 1,dim
+			if (j /= i) then
+		       m_amp(j,:) = m_amp(j,:) - m_amp(i,:) * m_amp(j,i)
+			end if
+		end do
+	end do
 
-          {/* TAB 4: CHECKLIST */}
-          {activeTab === 'checklist' && (
-            <div className="p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <h3 className="font-bold text-xl mb-6 text-center text-slate-800">Antes de levantar la mano...</h3>
-              
-              <div className="space-y-3 max-w-lg mx-auto">
-                {[
-                  "¿Escribiste 'implicit none' al principio?",
-                  "¿Las variables (q, F, J) tienen el tamaño correcto (3 o 4)?",
-                  "¿Le diste valor inicial a q(1), q(2), q(3)?",
-                  "¿Abriste el archivo con open(...) y lo cerraste con close(...)?",
-                  "¿Pusiste J = 0.0 antes de llenar las derivadas?",
-                  "¿Los números decimales tienen punto? (ej: 2.0, no 2)",
-                  "¿Copiaste la subrutina gj al final del archivo?",
-                  "¿Tu ecuación F(1) usa la variable del pistón (x_pis)?",
-                ].map((item, idx) => (
-                  <label key={idx} className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-blue-50 cursor-pointer transition-colors">
-                    <input type="checkbox" className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
-                    <span className="text-slate-700 font-medium">{item}</span>
-                  </label>
-                ))}
-              </div>
-
-              <div className="mt-8 p-4 bg-green-50 text-green-800 rounded-lg text-center border border-green-200">
-                <Save className="mx-auto mb-2" size={24} />
-                <p className="font-bold">Si todo está marcado, compila y ejecuta.</p>
-                <p className="text-sm">¡Ese 4.0 es tuyo!</p>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: DESPLIEGUE */}
-          {activeTab === 'deploy' && (
-            <div className="p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <h3 className="font-bold text-xl mb-6 flex items-center gap-2 text-slate-800">
-                <Globe className="text-blue-500" />
-                Cómo llevar este Kit a GitHub Pages
-              </h3>
-              
-              <div className="space-y-6 max-w-3xl mx-auto">
-                
-                <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
-                  <h4 className="font-bold text-lg mb-3">1. Requisitos Previos</h4>
-                  <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
-                    <li>Tener <strong>Node.js</strong> instalado en tu computadora.</li>
-                    <li>Tener una cuenta en <strong>GitHub</strong>.</li>
-                    <li>Tener <strong>Git</strong> instalado.</li>
-                  </ul>
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-4">
-                    <div className="border border-slate-200 p-4 rounded-lg bg-white">
-                      <div className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded w-fit mb-2">PASO 2</div>
-                      <h5 className="font-bold text-sm mb-2">Crear Proyecto Vite</h5>
-                      <div className="bg-slate-800 text-slate-200 p-3 rounded font-mono text-xs">
-                        npm create vite@latest mi-kit -- --template react
-                        <br/>cd mi-kit
-                        <br/>npm install
-                      </div>
-                    </div>
-
-                    <div className="border border-slate-200 p-4 rounded-lg bg-white">
-                      <div className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded w-fit mb-2">PASO 3</div>
-                      <h5 className="font-bold text-sm mb-2">Instalar Dependencias</h5>
-                      <p className="text-xs text-slate-500 mb-2">Para que se vea igual a este diseño:</p>
-                      <div className="bg-slate-800 text-slate-200 p-3 rounded font-mono text-xs">
-                        npm install -D tailwindcss postcss autoprefixer
-                        <br/>npx tailwindcss init -p
-                        <br/>npm install lucide-react
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="border border-slate-200 p-4 rounded-lg bg-white h-full">
-                      <div className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded w-fit mb-2">PASO 4</div>
-                      <h5 className="font-bold text-sm mb-2">Copiar el Código</h5>
-                      <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-                        1. Ve al archivo <code>src/App.jsx</code> en tu nuevo proyecto.<br/>
-                        2. Borra todo lo que hay dentro.<br/>
-                        3. Copia el código completo de este "Kit de Supervivencia" (haz clic en "Copiar" arriba a la derecha de este editor).<br/>
-                        4. Pégalo en <code>src/App.jsx</code>.<br/>
-                        5. Asegúrate de configurar Tailwind en <code>index.css</code> agregando:<br/>
-                        <code className="block bg-slate-100 p-1 mt-1 text-slate-500">
-                          @tailwind base; @tailwind components; @tailwind utilities;
-                        </code>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 text-white p-5 rounded-xl">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="bg-green-500 text-slate-900 text-xs font-bold px-2 py-1 rounded">PASO FINAL</div>
-                    <h5 className="font-bold">Subir y Desplegar</h5>
-                  </div>
-                  <div className="font-mono text-xs text-slate-300 space-y-2">
-                    <p># 1. Crea un repositorio vacío en GitHub.com</p>
-                    <p># 2. En tu terminal:</p>
-                    <p>git init</p>
-                    <p>git add .</p>
-                    <p>git commit -m "Mi Kit de Supervivencia"</p>
-                    <p>git branch -M main</p>
-                    <p>git remote add origin https://github.com/TU_USUARIO/mi-kit.git</p>
-                    <p>git push -u origin main</p>
-                    <br/>
-                    <p className="text-yellow-400"># 3. Ve a Settings &gt; Pages en GitHub y selecciona 'main' como fuente (Source).</p>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          )}
-
-        </div>
-      </main>
-    </div>
-  );
-};
-
-export default SurvivalKit;
+	sol = m_amp(:,dim+1)
+      end subroutine
+  </code></pre>
+</body>
+</html>
