@@ -10,86 +10,149 @@
 
   <!-- Fragmento de código -->
   <pre><code>
-      program E2
-      implicit none
-      real :: q(3),dp(3,3),dq(3),p(3),ya,xb,yb,error
-      real :: suma
-      integer :: i,j,k
-      !Valores iniciales
-      ya = 44
-      xb = 100
-      yb = 60
-      error = 100
-      !Deja la matriz de 3x3 rellena de ceros
-      dp = 0.0
+	program E2
+    implicit none
+    ! --- Declaracion de Variables ---
+    integer, parameter :: n = 3       ! Dimension del sistema
+    real :: q(n), dp(n,n), dq(n), p(n)
+    real :: ya, xb, yb, error, suma
+    integer :: i
 
-      do while(error>0.01)
+    ! --- Valores iniciales (Semilla) ---
+    ya = 44.0
+    xb = 100.0
+    yb = 60.0
 
-         suma = 0.0
-         !Definimos ecuaciones R
-         p(1) = 40**2+ya**2-60**2
-         p(2) = (xb-40)**2+(yb-ya)**2-100**2
-         p(3) = (120-xb)**2 + (0-yb)**2-130**2
-         !Definimos dp
-         dp(1,1) = 2*ya
-         dp(2,1) = -2*(yb-ya)
-         dp(2,2) = 2*(xb-40)
-         dp(2,3) = 2*(yb-ya)
-         dp(3,2) = -2*(120-xb)
-         dp(3,3) = 2*yb
+    ! Valor inicial alto para asegurar que entre al bucle
+    error = 100.0
 
-         p = -p
+    print *, "--- Iniciando Newton-Raphson ---"
+    print *, "Iteracion      Error           YA           XB           YB"
 
-         call gj(dp,p,3,dq)
-         !Determino la norma de dq
-         do i = 1,3,1
+    ! --- Bucle de Newton-Raphson ---
+    do while(error > 0.001)
+
+        ! 1. Limpiar matriz Jacobiana (Importante)
+        dp = 0.0
+
+        ! 2. Definir las Ecuaciones de Residuo (P)
+        ! Ec 1: 40^2 + ya^2 - 60^2 = 0
+        p(1) = 40.0**2 + ya**2 - 60.0**2
+        
+        ! Ec 2: (xb-40)^2 + (yb-ya)^2 - 100^2 = 0
+        p(2) = (xb-40.0)**2 + (yb-ya)**2 - 100.0**2
+        
+        ! Ec 3: (120-xb)^2 + (0-yb)^2 - 130^2 = 0
+        p(3) = (120.0-xb)**2 + (0.0-yb)**2 - 130.0**2
+
+        ! 3. Definir la Matriz Jacobiana (Derivadas Parciales)
+        ! Fila 1 (Derivadas de Ec 1 respecto a ya, xb, yb)
+        dp(1,1) = 2.0 * ya
+        ! dp(1,2) y dp(1,3) son 0 y ya se limpiaron arriba
+
+        ! Fila 2 (Derivadas de Ec 2)
+        dp(2,1) = -2.0 * (yb - ya)   ! d/dya
+        dp(2,2) =  2.0 * (xb - 40.0) ! d/dxb
+        dp(2,3) =  2.0 * (yb - ya)   ! d/dyb
+
+        ! Fila 3 (Derivadas de Ec 3)
+        ! dp(3,1) es 0 (no depende de ya)
+        dp(3,2) = -2.0 * (120.0 - xb) ! d/dxb
+        dp(3,3) =  2.0 * yb           ! d/dyb  (nota: d((0-yb)^2)/dyb = 2yb)
+
+        ! 4. Preparar el sistema J * dq = -P
+        p = -p
+
+        ! 5. Resolver el sistema lineal con Gauss-Jordan
+        call gj(dp, p, n, dq)
+
+        ! 6. Calcular la magnitud del error (Norma Euclidiana)
+        suma = 0.0
+        do i = 1, n
             suma = suma + dq(i)**2
-         enddo
-         error = sqrt(suma)
-
-         ya = ya + dq(1)
-         xb = xb + dq(2)
-         yb = yb + dq(3)
-
-         write(*,*) ya,xb,yb
-      end do
-
-
-
-      pause
-      end program E2
-
-
-
-C     Agregar subrutina GJ
-
-      subroutine gj(A,b,dim,sol)
-	implicit none
-	integer :: dim, i ,j
-	real :: m_amp(dim,dim+1), A(dim,dim), b(dim), sol(dim)
-
-	m_amp(1:dim,1:dim) = A
-	m_amp(:,dim+1) = b
-
-	!!! evitar ceros en la diagonal
-
-	do i = 1,dim
-           do j = 1,dim
-              m_amp(i,:) = m_amp(i,:) +m_amp(j,:)
         end do
+        error = sqrt(suma)
+
+        ! 7. Actualizar las variables de estado
+        ya = ya + dq(1)
+        xb = xb + dq(2)
+        yb = yb + dq(3)
+
+        ! Imprimir estado actual
+        write(*,'(F15.6, 3F13.4)') error, ya, xb, yb
+
+    end do
+
+    print *, "--- Convergencia Lograda ---"
+    print *, "Resultados Finales:"
+    print *, "YA =", ya
+    print *, "XB =", xb
+    print *, "YB =", yb
+
+    pause
+end program E2
+
+
+! ---------------------------------------------------------
+! SUBRUTINA: GAUSS-JORDAN CON PIVOTEO PARCIAL
+! ---------------------------------------------------------
+subroutine gj(A, b, dim, sol)
+    implicit none
+    integer, intent(in) :: dim
+    real, intent(in) :: A(dim,dim), b(dim)
+    real, intent(out) :: sol(dim)
+    
+    real :: m_amp(dim, dim+1) ! Matriz Aumentada
+    real :: temp(dim+1)       ! Vector temporal para intercambio
+    real :: pivote
+    integer :: i, j, k, max_fila
+
+    ! Copiar A y b a la matriz aumentada
+    m_amp(1:dim, 1:dim) = A
+    m_amp(:, dim+1) = b
+
+    ! -- Inicio Eliminacion Gaussiana --
+    do i = 1, dim
+        
+        ! 1. PIVOTEO PARCIAL: Buscar el mayor valor en la columna actual
+        max_fila = i
+        do k = i+1, dim
+            if (abs(m_amp(k,i)) > abs(m_amp(max_fila,i))) then
+                max_fila = k
+            end if
         end do
 
-	do i =1,dim
-		m_amp(i,:) = m_amp(i,:)/m_amp(i,i)
-		do j = 1,dim
-			if (j /= i) then
-		       m_amp(j,:) = m_amp(j,:) - m_amp(i,:) * m_amp(j,i)
-			end if
-		end do
-	end do
+        ! Intercambiar filas si encontramos un pivote mejor
+        if (max_fila /= i) then
+            temp = m_amp(i,:)
+            m_amp(i,:) = m_amp(max_fila,:)
+            m_amp(max_fila,:) = temp
+        end if
 
-	sol = m_amp(:,dim+1)
-      end subroutine
+        ! 2. Normalizar la fila del pivote (hacer que el diagonal sea 1)
+        pivote = m_amp(i,i)
+        
+        ! Proteccion contra division por cero
+        if (abs(pivote) < 1.0E-8) then
+            print *, "Error Numerico: Matriz Singular en paso", i
+            stop
+        end if
+        
+        m_amp(i,:) = m_amp(i,:) / pivote
+
+        ! 3. Hacer ceros en las demas filas de la columna i
+        do j = 1, dim
+            if (j /= i) then
+                m_amp(j,:) = m_amp(j,:) - (m_amp(i,:) * m_amp(j,i))
+            end if
+        end do
+
+    end do
+
+    ! Extraer la solucion (la ultima columna de la matriz aumentada)
+    sol = m_amp(:, dim+1)
+
+end subroutine gj
   </code></pre>
 </body>
 </html>
